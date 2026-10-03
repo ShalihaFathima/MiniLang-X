@@ -4,7 +4,7 @@ from lexer.lexer import Lexer
 from parser.parser import Parser
 from semantic.analyzer import SemanticAnalyzer, SemanticError
 from ir.generator import TACGenerator
-from optimizer.optimizer import Optimizer
+from optimizer.optimizer import Optimizer, collect_variable_types
 from optimizer.cfg import ControlFlowGraph
 from backend.code_generator import CodeGenerator
 from backend.vm import VirtualMachine
@@ -61,7 +61,9 @@ def compile_source(source, show_stages=False):
     # Phase 5: Optimization
     # --------------------------------
 
-    optimizer = Optimizer()
+    variable_types = collect_variable_types(ast)
+
+    optimizer = Optimizer(variable_types)
     optimized_tac = optimizer.optimize(tac)
 
     if show_stages:
@@ -80,7 +82,7 @@ def compile_source(source, show_stages=False):
     # Phase 6: Target Code Generation
     # --------------------------------
 
-    code_generator = CodeGenerator()
+    code_generator = CodeGenerator(variable_types)
 
     target_program = code_generator.generate(
         optimized_tac

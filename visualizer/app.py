@@ -113,5 +113,37 @@ def api_cfg():
         }), 400
 
 
+@app.route("/api/optimize", methods=["POST"])
+def api_optimize():
+    from visualizer.compiler_bridge import optimize_source
+
+    data = request.get_json()
+    source = data.get("source", "")
+
+    try:
+        return jsonify(optimize_source(source))
+    except Exception as error:
+        return jsonify({
+            "success": False,
+            "error": str(error)
+        }), 400
+
+
+@app.route("/api/run", methods=["POST"])
+def api_run():
+    from visualizer.compiler_bridge import run_source
+
+    data = request.get_json()
+    source = data.get("source", "")
+
+    try:
+        return jsonify(run_source(source))
+    except Exception as error:
+        return jsonify({
+            "success": False,
+            "error": str(error)
+        }), 400
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

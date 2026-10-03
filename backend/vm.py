@@ -70,6 +70,11 @@ class VirtualMachine:
                 )
 
             value = self.stack.pop()
+
+            # STORE x float: the variable is declared float
+            if instruction.operand2 == "float":
+                value = float(value)
+
             self.memory[variable] = value
 
             self.pc += 1
@@ -111,7 +116,7 @@ class VirtualMachine:
                     "Division by zero"
                 )
 
-            self.stack.append(left / right)
+            self.stack.append(self.divide(left, right))
 
             self.pc += 1
             return
@@ -304,6 +309,15 @@ class VirtualMachine:
         raise RuntimeError(
             f"Unknown VM instruction: {opcode}"
         )
+
+    def divide(self, left, right):
+        # int / int is integer division truncating toward zero;
+        # if either operand is a float, use floating-point division.
+        if isinstance(left, int) and isinstance(right, int):
+            quotient = abs(left) // abs(right)
+            return quotient if (left >= 0) == (right >= 0) else -quotient
+
+        return left / right
 
     def pop_two(self):
         if len(self.stack) < 2:

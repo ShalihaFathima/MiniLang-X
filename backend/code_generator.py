@@ -3,8 +3,13 @@ from backend.instructions import TargetProgram
 
 
 class CodeGenerator:
-    def __init__(self):
+    def __init__(self, variable_types=None):
         self.target = TargetProgram()
+
+        # Declared type of each variable (from the AST). Stores into
+        # float variables are tagged so the VM keeps the value a float,
+        # e.g.  float g = 10;  stores 10.0
+        self.variable_types = variable_types or {}
 
     def generate(self, tac_program):
         for instruction in tac_program.instructions:
@@ -42,7 +47,7 @@ class CodeGenerator:
 
         if operation == "ASSIGN":
             self.load_operand(instruction.arg1)
-            self.target.emit("STORE", instruction.result)
+            self.store(instruction.result)
             return
 
         if operation == "UNARY":
@@ -67,6 +72,12 @@ class CodeGenerator:
         raise RuntimeError(
             f"Unsupported TAC operation: {operation}"
         )
+
+    def store(self, name):
+        if self.variable_types.get(name) == "float":
+            self.target.emit("STORE", name, "float")
+        else:
+            self.target.emit("STORE", name)
 
     def load_operand(self, operand):
         if self.is_literal(operand):
@@ -94,7 +105,7 @@ class CodeGenerator:
         opcode = opcode_map[instruction.operation]
 
         self.target.emit(opcode)
-        self.target.emit("STORE", instruction.result)
+        self.store(instruction.result)
 
     def translate_unary(self, instruction):
         expression = instruction.arg1
@@ -114,7 +125,7 @@ class CodeGenerator:
                 f"Unsupported unary expression: {expression}"
             )
 
-        self.target.emit("STORE", instruction.result)
+        self.store(instruction.result)
 
     def is_literal(self, value):
         if value is None:
@@ -142,9 +153,8 @@ class CodeGenerator:
         if value.startswith('"') and value.endswith('"'):
             return value[1:-1]
 
-        number = float(value)
+        # Keep the literal's type: "7" is an int, "7.0" is a float
+        if any(marker in value.lower() for marker in (".", "e", "inf", "nan")):
+            return float(value)
 
-        if number.is_integer():
-            return int(number)
-
-        return number
+        return int(value)

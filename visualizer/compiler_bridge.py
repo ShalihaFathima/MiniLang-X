@@ -232,7 +232,7 @@ def tac_source(source):
 
     for instruction in tac.instructions:
         instructions.append({
-            "op": getattr(instruction, "op", ""),
+            "op": instruction.operation,
             "arg1": getattr(instruction, "arg1", None),
             "arg2": getattr(instruction, "arg2", None),
             "result": getattr(instruction, "result", None),
@@ -308,3 +308,152 @@ def cfg_source(source):
         "text": str(cfg)
     }
 
+
+
+# =========================================================
+# Optimizer, VM and Output stages
+# =========================================================
+
+# The dashboard steps the VM itself, so it can stop a program that
+# never terminates instead of hanging the web server.
+MAX_VM_STEPS = 100_000
+
+# Only the first steps of the execution trace are sent to the page.
+MAX_TRACE_ENTRIES = 300
+
+
+class StageError(Exception):
+    """A compiler error tagged with the phase that reported it."""
+
+    def __init__(self, phase, error):
+        super().__init__(f"{phase}: {error}")
+
+
+def tac_instructions_to_dicts(instructions):
+    return [
+        {
+            "op": instruction.operation,
+            "arg1": instruction.arg1,
+            "arg2": instruction.arg2,
+            "result": instruction.result,
+            "text": str(instruction),
+        }
+        for instruction in instructions
+    ]
+
+
+def compile_to_optimized_tac(source):
+    """
+    Run the same front end and optimizer as main.py.
+    Returns (ast, tac, optimized_tac, variable_types).
+    """
+    from semantic.analyzer import SemanticError
+    from optimizer.optimizer import Optimizer, collect_variable_types
+
+    try:
+        tokens = Lexer(source).tokenize()
+        ast = Parser(tokens).parse()
+    except SyntaxError as error:
+        raise StageError("Syntax Error", error)
+
+    try:
+        SemanticAnalyzer().analyze(ast)
+    except SemanticError as error:
+        raise StageError("Semantic Error", error)
+
+    tac = TACGenerator().generate(ast)
+
+    variable_types = collect_variable_types(ast)
+    optimized_tac = Optimizer(variable_types).optimize(tac)
+
+    return ast, tac, optimized_tac, variable_types
+
+
+def optimize_source(source):
+    _, tac, optimized_tac, _ = compile_to_optimized_tac(source)
+
+    original = [str(i) for i in tac.instructions]
+    optimized = [str(i) for i in optimized_tac.instructions]
+
+    return {
+        "success": True,
+        "original": tac_instructions_to_dicts(tac.instructions),
+        "optimized": tac_instructions_to_dicts(optimized_tac.instructions),
+        "original_text": str(tac),
+        "optimized_text": str(optimized_tac),
+        "changed": original != optimized,
+        # Instruction positions whose text changed
+        "changed_indices": [
+            index
+            for index, text in enumerate(optimized)
+            if index >= len(original) or original[index] != text
+        ],
+    }
+
+
+def run_source(source):
+    """
+    Generate target code from the optimized TAC and execute it on the
+    existing VirtualMachine, one instruction at a time via its own
+    execute() method, recording a trace and capturing printed output.
+    """
+    import io
+    from contextlib import redirect_stdout
+
+    from backend.code_generator import CodeGenerator
+    from backend.vm import VirtualMachine
+
+    _, _, optimized_tac, variable_types = compile_to_optimized_tac(source)
+
+    target_program = CodeGenerator(variable_types).generate(optimized_tac)
+
+    vm = VirtualMachine(target_program)
+
+    trace = []
+    steps = 0
+    output = io.StringIO()
+    runtime_error = None
+
+    with redirect_stdout(output):
+        try:
+            while vm.running and vm.pc < len(vm.instructions):
+
+                if steps >= MAX_VM_STEPS:
+                    raise RuntimeError(
+                        f"Execution stopped after {MAX_VM_STEPS:,} "
+                        f"instructions (possible infinite loop)"
+                    )
+
+                pc = vm.pc
+                instruction = vm.instructions[pc]
+
+                vm.execute(instruction)
+                steps += 1
+
+                if len(trace) < MAX_TRACE_ENTRIES:
+                    trace.append({
+                        "step": steps,
+                        "pc": pc,
+                        "instruction": str(instruction),
+                        "stack": [repr(value) for value in vm.stack],
+                    })
+
+        except RuntimeError as error:
+            runtime_error = f"Runtime Error: {error}"
+
+    return {
+        "success": True,
+        "instructions": [
+            {"index": index, "text": str(instruction), "opcode": instruction.opcode}
+            for index, instruction in enumerate(target_program.instructions)
+        ],
+        "trace": trace,
+        "trace_truncated": steps > len(trace),
+        "steps": steps,
+        "output": output.getvalue(),
+        "memory": [
+            {"name": name, "value": repr(value)}
+            for name, value in vm.memory.items()
+        ],
+        "runtime_error": runtime_error,
+    }

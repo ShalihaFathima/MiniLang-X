@@ -1,4 +1,38 @@
+import re
+
 from ir.tac import TACInstruction, TACProgram
+
+
+TEMP_NAME = re.compile(r"t\d+")
+
+
+def collect_variable_types(program):
+    """
+    Map variable name -> declared type by walking the AST's
+    declarations. A name declared with different types in different
+    scopes maps to None (unknown), so the optimizer treats it
+    conservatively.
+    """
+    types = {}
+
+    def walk(node):
+        if node is None:
+            return
+
+        if hasattr(node, "data_type") and hasattr(node, "initializer"):
+            if node.name in types and types[node.name] != node.data_type:
+                types[node.name] = None
+            else:
+                types[node.name] = node.data_type
+
+        for child in getattr(node, "statements", []):
+            walk(child)
+
+        for attribute in ("then_branch", "else_branch", "body"):
+            walk(getattr(node, attribute, None))
+
+    walk(program)
+    return types
 
 
 class Optimizer:
@@ -15,12 +49,29 @@ class Optimizer:
         ">=",
     }
 
+    MAX_ROUNDS = 50
+
+    def __init__(self, variable_types=None):
+        # Declared type of each variable (see collect_variable_types).
+        # Needed so a constant stored in a float variable stays a
+        # float, e.g.  float f = 10;  ->  f holds 10.0
+        self.variable_types = variable_types or {}
+
     def optimize(self, tac_program):
         instructions = tac_program.instructions
 
-        instructions = self.constant_folding(instructions)
-        instructions = self.constant_propagation(instructions)
-        instructions = self.algebraic_simplification(instructions)
+        # Repeat the passes until nothing changes (a fixed point), so
+        # results of one pass feed the next:
+        #   t1 = 3 * 4; t2 = 2 + t1  ->  t1 = 12; t2 = 2 + 12  ->  t2 = 14
+        for _ in range(self.MAX_ROUNDS):
+            previous = instructions
+
+            instructions = self.constant_folding(instructions)
+            instructions = self.constant_propagation(instructions)
+            instructions = self.algebraic_simplification(instructions)
+
+            if instructions == previous:
+                break
 
         optimized = TACProgram()
 
@@ -50,6 +101,11 @@ class Optimizer:
                     left = self.parse_number(instruction.arg1)
                     right = self.parse_number(instruction.arg2)
 
+                    # Leave division by zero for the runtime to report
+                    if instruction.operation == "/" and right == 0:
+                        result.append(instruction)
+                        continue
+
                     value = self.evaluate(
                         instruction.operation,
                         left,
@@ -59,7 +115,7 @@ class Optimizer:
                     result.append(
                         TACInstruction(
                             operation="ASSIGN",
-                            arg1=str(value),
+                            arg1=self.format_constant(value),
                             result=instruction.result,
                         )
                     )
@@ -120,9 +176,21 @@ class Optimizer:
 
                 if self.is_number(value):
 
-                    constants[instruction.result] = (
-                        self.parse_number(value)
-                    )
+                    number = self.parse_number(value)
+                    name = instruction.result
+                    declared = self.variable_types.get(name)
+
+                    if declared == "float":
+                        constants[name] = float(number)
+
+                    elif declared == "int" or TEMP_NAME.fullmatch(name):
+                        constants[name] = number
+
+                    else:
+                        # Unknown type: do not propagate, since an int
+                        # constant stored in a float variable would
+                        # otherwise be treated as an int.
+                        constants.pop(name, None)
 
                 else:
 
@@ -270,12 +338,19 @@ class Optimizer:
 
     def parse_number(self, value):
 
-        number = float(value)
+        # Keep the literal's type: "10" is an int, "10.0" is a float
+        if any(marker in value.lower() for marker in (".", "e", "inf", "nan")):
+            return float(value)
 
-        if number.is_integer():
-            return int(number)
+        return int(value)
 
-        return number
+    def format_constant(self, value):
+
+        # Comparison results must use MiniLang-X boolean literals
+        if isinstance(value, bool):
+            return "true" if value else "false"
+
+        return str(value)
 
     def evaluate(self, operator, left, right):
 
@@ -289,6 +364,13 @@ class Optimizer:
             return left * right
 
         if operator == "/":
+
+            # int / int is integer division (truncating toward zero);
+            # any float operand gives floating-point division.
+            if isinstance(left, int) and isinstance(right, int):
+                quotient = abs(left) // abs(right)
+                return quotient if (left >= 0) == (right >= 0) else -quotient
+
             return left / right
 
         if operator == "==":

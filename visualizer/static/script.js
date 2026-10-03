@@ -16,7 +16,8 @@ let state = {
     tokens: null,
     ast: null,
     tac: null,
-    cfg: null
+    cfg: null,
+    run: null
 };
 
 
@@ -74,6 +75,14 @@ async function getTAC() {
 
 async function getCFG() {
     return await api("/api/cfg");
+}
+
+async function getOptimized() {
+    return await api("/api/optimize");
+}
+
+async function getRun() {
+    return await api("/api/run");
 }
 
 
@@ -337,66 +346,89 @@ function drawPrecedenceTree(root) {
      */
 
     const width = 760;
-    const height = 440;
 
     const nodeWidth = 105;
     const nodeHeight = 58;
 
+    const verticalGap = 120;
+
 
     /*
-     * Collect nodes by depth.
+     * Layout follows the parent/child structure:
+     *
+     *  - leaves are placed left to right in order,
+     *  - each operator is centred above its own children,
+     *  - depth determines the vertical position.
+     *
+     * So in  2 + 3 * 4  the nodes 3 and 4 sit under *,
+     * and * sits under + next to 2.
      */
 
-    const levels = [];
+    const leaves = [];
+    let maxDepth = 0;
 
 
-    function collect(node, depth = 0) {
+    function collectLeaves(node, depth = 0) {
 
-        if (!levels[depth]) {
-            levels[depth] = [];
-        }
-
-        levels[depth].push(node);
+        maxDepth = Math.max(maxDepth, depth);
 
         const children =
             node.children || [];
 
+        if (!children.length) {
+            leaves.push(node);
+            return;
+        }
+
         children.forEach(child => {
-            collect(child, depth + 1);
+            collectLeaves(child, depth + 1);
         });
     }
 
 
-    collect(root);
+    collectLeaves(root);
 
 
-    /*
-     * Position each level.
-     */
+    const height =
+        110 + maxDepth * verticalGap;
+
+    const leafSpacing =
+        width / (leaves.length + 1);
 
     const positions = new Map();
 
-    const verticalGap = 120;
 
+    function place(node, depth = 0) {
 
-    levels.forEach(function(level, depth) {
+        const children =
+            node.children || [];
 
-        const count = level.length;
+        let x;
 
-        const spacing =
-            width / (count + 1);
+        if (!children.length) {
 
+            x = leafSpacing * (leaves.indexOf(node) + 1);
 
-        level.forEach(function(node, index) {
+        } else {
 
-            positions.set(node, {
-                x: spacing * (index + 1),
-                y: 55 + depth * verticalGap
+            children.forEach(child => {
+                place(child, depth + 1);
             });
 
-        });
+            const childX =
+                children.map(child => positions.get(child).x);
 
-    });
+            x = (Math.min(...childX) + Math.max(...childX)) / 2;
+        }
+
+        positions.set(node, {
+            x: x,
+            y: 55 + depth * verticalGap
+        });
+    }
+
+
+    place(root);
 
 
     let edges = "";
@@ -569,8 +601,7 @@ function showPrecedence(ast) {
 
             <div class="semantic-status success">
 
-                ✓ Multiplication has higher precedence
-                than addition
+                ✓ Expression tree built by the parser
 
             </div>
 
@@ -585,7 +616,7 @@ function showPrecedence(ast) {
                 <strong>Parsed structure:</strong>
 
                 <code>
-                    10 + (20 * 3)
+                    ${escapeHTML(expressionLabel)}
                 </code>
 
             </div>
@@ -626,14 +657,24 @@ function buildExpressionText(node) {
         const children =
             node.children || [];
 
+        /*
+         * Parenthesise every binary node so the text shows
+         * exactly how the parser grouped the operands:
+         *
+         *   2 + 3 * 4   ->  (2 + (3 * 4))
+         *   10 - 2 - 3  ->  ((10 - 2) - 3)
+         */
+
         if (children.length >= 2) {
 
             return (
+                "(" +
                 buildExpressionText(children[0]) +
                 " " +
                 node.operator +
                 " " +
-                buildExpressionText(children[1])
+                buildExpressionText(children[1]) +
+                ")"
             );
         }
     }
@@ -1094,17 +1135,49 @@ function showSemantic(result) {
    TAC
    ========================================================= */
 
-function getTACOperator(result, index) {
+function tacInstructionText(instruction) {
 
-    const lines =
-        String(result.text || "").split(/\r?\n/);
+    /*
+     * Format one TAC instruction from its structured fields,
+     * using the real operation sent by the backend (op).
+     */
 
-    const line = lines[index] || "";
+    const op = instruction.op;
+    const arg1 = instruction.arg1;
+    const arg2 = instruction.arg2;
+    const result = instruction.result;
 
-    const match =
-        line.match(/=\s+\S+\s+(\S+)\s+\S+/);
+    if (op === "LABEL") {
+        return result + ":";
+    }
 
-    return match ? match[1] : "";
+    if (op === "GOTO") {
+        return "goto " + result;
+    }
+
+    if (op === "IF_FALSE") {
+        return "ifFalse " + arg1 + " goto " + result;
+    }
+
+    if (op === "IF_TRUE") {
+        return "ifTrue " + arg1 + " goto " + result;
+    }
+
+    if (op === "PRINT") {
+        return "print " + arg1;
+    }
+
+    if (op === "ASSIGN" || op === "UNARY") {
+        return result + " = " + arg1;
+    }
+
+    if (arg2 !== null) {
+        return result + " = " + arg1 + " " + op + " " + arg2;
+    }
+
+    return [op, arg1, arg2, result]
+        .filter(part => part !== null)
+        .join(" ");
 }
 
 
@@ -1115,46 +1188,8 @@ function showTAC(result) {
     result.instructions.forEach(
         function(instruction, index) {
 
-            let tac = "";
-
-            if (
-                instruction.result === null &&
-                instruction.arg1 !== null
-            ) {
-
-                tac =
-                    "print " +
-                    instruction.arg1;
-
-            }
-
-            else if (
-                instruction.result !== null &&
-                instruction.arg1 !== null &&
-                instruction.arg2 !== null
-            ) {
-
-                tac =
-                    instruction.result +
-                    " = " +
-                    instruction.arg1 +
-                    " " +
-                    getTACOperator(result, index) +
-                    " " +
-                    instruction.arg2;
-
-            }
-
-            else if (
-                instruction.result !== null &&
-                instruction.arg1 !== null
-            ) {
-
-                tac =
-                    instruction.result +
-                    " = " +
-                    instruction.arg1;
-            }
+            const tac =
+                tacInstructionText(instruction);
 
 
             rows += `
@@ -1798,6 +1833,222 @@ function showCFG(result) {
 
 
 /* =========================================================
+   OPTIMIZER
+   ========================================================= */
+
+function tacRowsHTML(instructions, highlighted) {
+
+    return instructions.map(function(instruction, index) {
+
+        const cls =
+            highlighted && highlighted.includes(index)
+                ? ' class="tac-changed"'
+                : "";
+
+        return `
+            <tr${cls}>
+                <td>${String(index).padStart(3, "0")}</td>
+                <td><code>${escapeHTML(tacInstructionText(instruction))}</code></td>
+            </tr>
+        `;
+    }).join("");
+}
+
+
+function showOptimizer(result) {
+
+    const status = result.changed
+        ? `✓ Optimization changed ${result.changed_indices.length} instruction(s)
+           (${result.original.length} → ${result.optimized.length} instructions)`
+        : "✓ No optimization opportunities found — the TAC is unchanged";
+
+    visualization.innerHTML = `
+        <div class="panel">
+
+            <h2>Optimizer</h2>
+
+            <p>
+                The optimizer applies constant folding, constant
+                propagation and algebraic simplification to the TAC.
+                Changed instructions are highlighted.
+            </p>
+
+            <div class="semantic-status success">
+                ${status}
+            </div>
+
+            <div class="tac-compare">
+
+                <div class="tac-table-wrapper">
+                    <div class="tac-title">Original TAC</div>
+                    <table>
+                        <thead>
+                            <tr><th>#</th><th>Instruction</th></tr>
+                        </thead>
+                        <tbody>
+                            ${tacRowsHTML(result.original)}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="tac-table-wrapper">
+                    <div class="tac-title">Optimized TAC</div>
+                    <table>
+                        <thead>
+                            <tr><th>#</th><th>Instruction</th></tr>
+                        </thead>
+                        <tbody>
+                            ${tacRowsHTML(result.optimized, result.changed_indices)}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   VM
+   ========================================================= */
+
+function showVM(result) {
+
+    const program = result.instructions.map(function(instruction) {
+
+        return `
+            <tr>
+                <td>${String(instruction.index).padStart(3, "0")}</td>
+                <td><code>${escapeHTML(instruction.text)}</code></td>
+            </tr>
+        `;
+    }).join("");
+
+
+    const trace = result.trace.map(function(entry) {
+
+        return `
+            <tr>
+                <td>${entry.step}</td>
+                <td>${String(entry.pc).padStart(3, "0")}</td>
+                <td><code>${escapeHTML(entry.instruction)}</code></td>
+                <td><code>[${escapeHTML(entry.stack.join(", "))}]</code></td>
+            </tr>
+        `;
+    }).join("");
+
+
+    const memory = result.memory.map(function(cell) {
+
+        return `
+            <tr>
+                <td><code>${escapeHTML(cell.name)}</code></td>
+                <td><code>${escapeHTML(cell.value)}</code></td>
+            </tr>
+        `;
+    }).join("");
+
+
+    const status = result.runtime_error
+        ? `<div class="semantic-status error">✗ ${escapeHTML(result.runtime_error)}</div>`
+        : `<div class="semantic-status success">
+               ✓ Executed ${result.steps} instruction(s) and halted
+           </div>`;
+
+    const truncated = result.trace_truncated
+        ? `<p>Showing the first ${result.trace.length} of ${result.steps} steps.</p>`
+        : "";
+
+
+    visualization.innerHTML = `
+        <div class="panel">
+
+            <h2>Virtual Machine</h2>
+
+            <p>
+                The code generator turns the optimized TAC into
+                stack-machine instructions, which the VM executes.
+            </p>
+
+            ${status}
+
+            <div class="tac-compare">
+
+                <div class="tac-table-wrapper">
+                    <div class="tac-title">Target Program</div>
+                    <table>
+                        <thead>
+                            <tr><th>#</th><th>Instruction</th></tr>
+                        </thead>
+                        <tbody>${program}</tbody>
+                    </table>
+                </div>
+
+                <div class="tac-table-wrapper">
+                    <div class="tac-title">Final Memory</div>
+                    <table>
+                        <thead>
+                            <tr><th>Variable</th><th>Value</th></tr>
+                        </thead>
+                        <tbody>${memory}</tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <div class="tac-table-wrapper">
+                <div class="tac-title">Execution Trace</div>
+                ${truncated}
+                <table>
+                    <thead>
+                        <tr><th>Step</th><th>PC</th><th>Instruction</th><th>Stack after</th></tr>
+                    </thead>
+                    <tbody>${trace}</tbody>
+                </table>
+            </div>
+
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   OUTPUT
+   ========================================================= */
+
+function showOutput(result) {
+
+    const output = result.output;
+
+    const status = result.runtime_error
+        ? `<div class="semantic-status error">✗ ${escapeHTML(result.runtime_error)}</div>`
+        : `<div class="semantic-status success">✓ Program finished</div>`;
+
+    visualization.innerHTML = `
+        <div class="panel">
+
+            <h2>Program Output</h2>
+
+            <p>
+                Output printed by the program while running on the VM.
+            </p>
+
+            ${status}
+
+            <pre class="tac-code program-output">${
+                output
+                    ? escapeHTML(output)
+                    : "(the program printed nothing)"
+            }</pre>
+
+        </div>
+    `;
+}
+
+
+/* =========================================================
    PIPELINE BUTTONS
    ========================================================= */
 
@@ -1901,13 +2152,43 @@ async function runStage(name) {
         }
 
 
+        if (stage.includes("optimizer")) {
+
+            showOptimizer(
+                await getOptimized()
+            );
+
+            return;
+        }
+
+
+        if (stage === "vm") {
+
+            state.run =
+                await getRun();
+
+            showVM(state.run);
+            return;
+        }
+
+
+        if (stage.includes("output")) {
+
+            state.run =
+                await getRun();
+
+            showOutput(state.run);
+            return;
+        }
+
+
         visualization.innerHTML = `
             <div class="panel">
 
                 <h2>${escapeHTML(name)}</h2>
 
                 <p>
-                    This stage will be connected next.
+                    No visualization is available for this stage.
                 </p>
 
             </div>
@@ -2032,6 +2313,41 @@ nextButton.addEventListener(
 
             if (state.step === 7) {
 
+                showOptimizer(
+                    await getOptimized()
+                );
+
+                state.step = 8;
+
+                return;
+            }
+
+
+            if (state.step === 8) {
+
+                state.run =
+                    await getRun();
+
+                showVM(state.run);
+
+                state.step = 9;
+
+                return;
+            }
+
+
+            if (state.step === 9) {
+
+                showOutput(state.run);
+
+                state.step = 10;
+
+                return;
+            }
+
+
+            if (state.step === 10) {
+
                 nextButton.style.display =
                     "none";
 
@@ -2040,7 +2356,7 @@ nextButton.addEventListener(
 
                 visualization.innerHTML += `
                     <div class="semantic-status success">
-                        ✓ CFG stage completed
+                        ✓ All compiler stages completed
                     </div>
                 `;
 
@@ -2084,7 +2400,8 @@ compileButton.addEventListener(
             tokens: null,
             ast: null,
             tac: null,
-            cfg: null
+            cfg: null,
+            run: null
         };
 
         compileButton.disabled = true;
