@@ -1,0 +1,8 @@
+string name = "MiniLang-X";
+bool active = true;
+
+print(name);
+
+if (active) {
+    print(100);
+}

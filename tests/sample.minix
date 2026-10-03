@@ -1,0 +1,7 @@
+int x = 1;
+int limit = 5;
+
+while (x <= limit) {
+    print(x);
+    x = x + 1;
+}
