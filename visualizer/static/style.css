@@ -174,6 +174,43 @@ button:hover {
     border-radius: 4px;
 }
 
+.lexer-statistics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    margin: 18px 0;
+    padding: 14px;
+    border: 1px solid #dbe1ea;
+    border-radius: 8px;
+    background: #f8fafc;
+    font-family: Arial, sans-serif;
+}
+
+.token-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.token-filters .token-filter {
+    margin-top: 0;
+    padding: 8px 12px;
+    background: #e5e7eb;
+    color: #1f2937;
+    font-size: 13px;
+}
+
+.token-filters .token-filter:hover,
+.token-filters .token-filter.active {
+    background: #2563eb;
+    color: white;
+}
+
+.token-table tr[hidden] {
+    display: none;
+}
+
 
 /* =========================
    AST / PRECEDENCE TREE
@@ -607,6 +644,54 @@ button:hover {
     margin: 15px 0;
 }
 
+.semantic-error p {
+    margin-bottom: 0;
+}
+
+.semantic-source {
+    overflow-x: auto;
+    padding: 12px;
+    border-radius: 6px;
+    background: white;
+    font-family: monospace;
+    white-space: pre;
+}
+
+.semantic-flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 18px 0;
+    color: #334155;
+    font-family: Arial, sans-serif;
+    font-weight: 700;
+}
+
+.semantic-flow span {
+    padding: 10px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #f8fafc;
+}
+
+.semantic-flow b {
+    color: #64748b;
+}
+
+.semantic-statistics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    margin: 18px 0;
+    padding: 14px;
+    border: 1px solid #dbe1ea;
+    border-radius: 8px;
+    background: #f8fafc;
+    font-family: Arial, sans-serif;
+}
+
 .semantic-message {
     margin-top: 20px;
     padding: 12px;
@@ -650,6 +735,35 @@ button:hover {
     font-family: monospace;
     font-size: 15px;
     font-weight: 600;
+}
+
+.tac-statistics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    margin: 18px 0;
+    padding: 14px;
+    border: 1px solid #dbe1ea;
+    border-radius: 8px;
+    background: #f8fafc;
+    font-family: Arial, sans-serif;
+}
+
+.tac-names {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0;
+    font-family: Arial, sans-serif;
+}
+
+.tac-names code {
+    padding: 4px 7px;
+    border-radius: 4px;
+    background: #e2e8f0;
+    color: #1e293b;
+    font-family: monospace;
 }
 
 
@@ -1090,9 +1204,73 @@ button:hover {
     font-weight: 700;
 }
 
+.parser-item small {
+    display: block;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 400;
+}
+
 .parser-arrow {
     font-size: 25px;
     font-weight: 700;
+}
+
+.ast-statistics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    margin: 18px 0;
+    padding: 14px;
+    border: 1px solid #dbe1ea;
+    border-radius: 8px;
+    background: #f8fafc;
+    font-family: Arial, sans-serif;
+}
+
+.syntax-error-details {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 8px 14px;
+    font-family: Arial, sans-serif;
+}
+
+.syntax-error-details dt {
+    color: #475569;
+    font-weight: 700;
+}
+
+.syntax-error-details dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.syntax-source {
+    overflow-x: auto;
+    padding: 14px;
+    border-radius: 8px;
+    background: #fff1f2;
+    color: #991b1b;
+    font-family: monospace;
+    white-space: pre;
+}
+
+.ast-container {
+    justify-content: flex-start;
+    overflow: auto;
+}
+
+.ast-container > .ast-node {
+    flex-shrink: 0;
+}
+
+.ast-box small {
+    display: block;
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 400;
 }
 
 
@@ -1122,6 +1300,15 @@ button:hover {
 
     .parser-flow {
         flex-wrap: wrap;
+    }
+
+    .syntax-error-details {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .syntax-error-details dd {
+        margin-bottom: 8px;
     }
 }
 
@@ -1836,90 +2023,6 @@ button:hover {
 }
 
 /* =========================================================
-   FINAL SVG AST
-   ========================================================= */
-
-.ast-svg-wrapper {
-    width: 100%;
-    box-sizing: border-box;
-
-    margin-top: 20px;
-    padding: 10px;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
-    border-radius: 12px;
-
-    overflow: hidden;
-}
-
-.ast-svg-tree {
-    width: 100%;
-    max-width: 900px;
-    height: auto;
-
-    display: block;
-}
-
-.ast-svg-edge {
-    stroke: #94a3b8;
-    stroke-width: 3;
-    fill: none;
-}
-
-.ast-arrow-head {
-    fill: #94a3b8;
-}
-
-.ast-svg-program {
-    fill: #111827;
-    stroke: #111827;
-    stroke-width: 3;
-}
-
-.ast-svg-declaration {
-    fill: #ecfdf5;
-    stroke: #059669;
-    stroke-width: 3;
-}
-
-.ast-svg-print {
-    fill: #fef3c7;
-    stroke: #d97706;
-    stroke-width: 3;
-}
-
-.ast-svg-operator {
-    fill: #dbeafe;
-    stroke: #2563eb;
-    stroke-width: 3;
-}
-
-.ast-svg-leaf {
-    fill: #f8fafc;
-    stroke: #334155;
-    stroke-width: 3;
-}
-
-.ast-svg-text {
-    fill: #1e293b;
-
-    font-family: monospace;
-
-    font-size: 17px;
-    font-weight: 800;
-}
-
-.ast-svg-program + .ast-svg-text {
-    fill: white;
-}
-
-
-/* =========================================================
    FINAL TAC PANEL
    ========================================================= */
 
@@ -2101,23 +2204,19 @@ button:hover {
     margin-top: 20px;
     padding: 10px;
 
-    display: flex;
-    justify-content: center;
+    display: block;
 
     background: #f8fafc;
 
     border: 1px solid #cbd5e1;
     border-radius: 12px;
 
-    overflow: hidden;
+    overflow: auto;
 }
 
 .cfg-graph-svg {
     display: block;
-
-    width: 100%;
-    max-width: 900px;
-
+    max-width: none;
     height: auto;
 }
 
@@ -2177,12 +2276,101 @@ button:hover {
 }
 
 .cfg-edge-label {
-    fill: #475569;
+    fill: #334155;
+    paint-order: stroke;
+    stroke: #f8fafc;
+    stroke-width: 5px;
+    stroke-linejoin: round;
 
     font-family: Arial, sans-serif;
 
     font-size: 13px;
     font-weight: 700;
+}
+
+.cfg-detail-text {
+    fill: #475569;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+}
+
+.cfg-statistics,
+.optimization-statistics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    margin: 18px 0;
+    padding: 14px;
+    border: 1px solid #dbe1ea;
+    border-radius: 8px;
+    background: #f8fafc;
+    font-family: Arial, sans-serif;
+}
+
+.optimization-transformations {
+    margin-top: 24px;
+}
+
+.optimization-flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 18px 0;
+    color: #334155;
+    font-family: Arial, sans-serif;
+    font-weight: 700;
+}
+
+.optimization-flow span {
+    padding: 9px 13px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #f8fafc;
+}
+
+.optimization-flow b {
+    color: #64748b;
+}
+
+.optimization-transformation {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 20px;
+    margin: 12px 0;
+    padding: 14px;
+    border: 1px solid #dbe1ea;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.optimization-transformation > strong {
+    grid-column: 1 / -1;
+}
+
+.optimization-transformation > div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-wrap: anywhere;
+}
+
+.optimization-transformation > div > span {
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.optimization-transformations code {
+    font-family: monospace;
+}
+
+.optimization-no-transformations {
+    padding: 12px;
+    border-radius: 6px;
+    background: #f8fafc;
 }
 
 .cfg-legend {
@@ -2250,8 +2438,76 @@ button:hover {
     white-space: pre-wrap;
 }
 
+.vm-statistics {
+    margin: 20px 0;
+    padding: 14px;
+    border: 1px solid #dbe1ea;
+    border-radius: 8px;
+    background: #f8fafc;
+    font-family: Arial, sans-serif;
+}
+
+.vm-statistics h3,
+.vm-stack-panel h3,
+.vm-output-panel h3 {
+    margin-top: 0;
+}
+
+.vm-statistics-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+}
+
+.vm-stack-panel,
+.vm-output-panel {
+    margin: 20px 0;
+    padding: 14px;
+    border: 1px solid #dbe1ea;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.vm-stack-cell {
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    background: white;
+    font-family: monospace;
+}
+
+.vm-stack-bottom {
+    margin-top: 8px;
+    color: #64748b;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.vm-empty-state {
+    color: #64748b;
+    font-style: italic;
+}
+
+.vm-trace-error td {
+    background: #fff1f2;
+    color: #991b1b;
+}
+
+.vm-stack-panel code,
+.vm-output-panel pre {
+    overflow-wrap: anywhere;
+}
+
 @media (max-width: 900px) {
     .tac-compare {
         grid-template-columns: 1fr;
+    }
+
+    .optimization-transformation {
+        grid-template-columns: 1fr;
+    }
+
+    .optimization-transformation > strong {
+        grid-column: auto;
     }
 }

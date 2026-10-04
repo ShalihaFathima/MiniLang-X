@@ -1,11 +1,12 @@
 from flask import Flask, render_template, request, jsonify
 
 from visualizer.compiler_bridge import (
-    tokenize_source,
-    parse_source,
+    tokenize_source_with_statistics,
+    parse_source_with_statistics,
     semantic_source,
     tac_source,
 )
+from parser.parser import ParserSyntaxError
 
 
 app = Flask(__name__)
@@ -24,11 +25,12 @@ def api_tokens():
 
     try:
 
-        tokens = tokenize_source(source)
+        tokens, statistics = tokenize_source_with_statistics(source)
 
         return jsonify({
             "success": True,
             "tokens": tokens,
+            "statistics": statistics,
         })
 
     except Exception as error:
@@ -47,19 +49,30 @@ def api_parse():
 
     try:
 
-        ast = parse_source(source)
+        ast, statistics = parse_source_with_statistics(source)
 
         return jsonify({
             "success": True,
             "ast": ast,
+            "statistics": statistics,
         })
 
     except Exception as error:
 
-        return jsonify({
+        response = {
             "success": False,
             "error": str(error),
-        }), 400
+        }
+        if isinstance(error, ParserSyntaxError):
+            response["details"] = {
+                "type": "Syntax Error",
+                "line": error.line,
+                "column": error.column,
+                "unexpected": getattr(error, "unexpected", None),
+                "expected": getattr(error, "expected", None),
+                "source_context": getattr(error, "source_context", None),
+            }
+        return jsonify(response), 400
 
 
 @app.route("/api/semantic", methods=["POST"])
