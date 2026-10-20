@@ -2511,3 +2511,219 @@ button:hover {
         grid-column: auto;
     }
 }
+
+
+/* =========================================================
+   LAYOUT AND READABILITY REFRESH
+   ---------------------------------------------------------
+   Overrides earlier rules; keeps the existing colour scheme.
+   - narrow sticky editor, wide visualization column
+   - stage HTML is no longer rendered with pre-wrap
+     (template indentation used to appear as large gaps)
+   - one box per stage instead of three nested boxes
+   - pipeline wraps instead of overflowing
+   - large tables scroll inside their own area
+   ========================================================= */
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+}
+
+code,
+pre,
+textarea {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.header {
+    padding: 20px 32px;
+}
+
+.header h1 {
+    font-size: 26px;
+}
+
+.container {
+    max-width: 1600px;
+    padding: 24px;
+}
+
+
+/* Pipeline ------------------------------------------------ */
+
+.pipeline-section {
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+
+.pipeline-section h2 {
+    margin: 0;
+    font-size: 15px;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.pipeline {
+    flex-wrap: wrap;
+    row-gap: 10px;
+    padding: 12px 0 0;
+    overflow: visible;
+}
+
+.stage {
+    padding: 8px 14px;
+    font-size: 14px;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.stage:hover:not(.active) {
+    background: #dbeafe;
+    border-color: #93c5fd;
+}
+
+.arrow {
+    font-size: 16px;
+}
+
+
+/* Workspace ----------------------------------------------- */
+
+.workspace {
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.workspace > .panel {
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.workspace > .panel:first-child {
+    position: sticky;
+    top: 16px;
+}
+
+.workspace > .panel > h2 {
+    margin: 0 0 14px;
+    font-size: 18px;
+}
+
+textarea {
+    min-height: 320px;
+    font-size: 14px;
+    line-height: 1.55;
+    tab-size: 4;
+}
+
+#compile-button {
+    width: 100%;
+}
+
+@media (max-width: 1000px) {
+    .workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .workspace > .panel:first-child {
+        position: static;
+    }
+}
+
+
+/* Stage content ------------------------------------------- */
+
+#visualization {
+    min-height: 200px;
+    padding: 0;
+    border: none;
+    font-family: inherit;
+    white-space: normal;
+}
+
+#visualization > .panel {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+#visualization > .panel > h2 {
+    margin: 0 0 6px;
+    font-size: 22px;
+}
+
+#visualization p {
+    margin: 0 0 12px;
+    color: #475569;
+}
+
+.semantic-status {
+    padding: 10px 14px;
+    margin: 12px 0;
+    font-size: 14px;
+}
+
+#next-step-button {
+    margin-top: 16px;
+}
+
+
+/* Wide content scrolls inside its own area ---------------- */
+
+.tac-table-wrapper,
+.token-table-wrapper {
+    max-height: 520px;
+    overflow: auto;
+}
+
+.tac-table-wrapper thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f8fafc;
+}
+
+/* Execution trace: size columns to their content */
+.tac-table-wrapper table {
+    table-layout: auto;
+}
+
+.tac-table-wrapper td code {
+    white-space: nowrap;
+}
+
+/* Graphs grow to their full height; wide ones scroll sideways */
+.ast-container,
+.cfg-graph-container {
+    min-height: 0;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
+}
+
+/*
+ * A centred flex row clips the left side of a tree that is wider
+ * than its box, and that part cannot be scrolled to. Auto margins
+ * centre small trees but let wide trees start at the left edge.
+ */
+.ast-container {
+    justify-content: flex-start;
+}
+
+.ast-container > .ast-node {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* "Visualization" is a section label; each stage has its own title */
+.workspace > .panel:last-child > h2 {
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
