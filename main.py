@@ -28,7 +28,7 @@ def compile_source(source, show_stages=False):
     # Phase 2: Syntax Analysis
     # --------------------------------
 
-    parser = Parser(tokens)
+    parser = Parser(tokens, source=source)
     ast = parser.parse()
 
     if show_stages:

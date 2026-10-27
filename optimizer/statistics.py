@@ -1,85 +1,100 @@
 from difflib import SequenceMatcher
 
+from optimizer.cfg import ControlFlowGraph
+
 
 def calculate_cfg_statistics(cfg):
-    blocks = cfg.blocks
+    if not isinstance(cfg, ControlFlowGraph):
+        raise TypeError(
+            f"Expected ControlFlowGraph, got {type(cfg).__name__}"
+        )
 
+    instructions = [
+        instruction
+        for block in cfg.blocks
+        for instruction in block.instructions
+    ]
     return {
-        "block_count": len(blocks),
-        "edge_count": sum(len(block.successors) for block in blocks),
-        "entry_block_count": 1 if blocks else 0,
-        "exit_block_count": sum(not block.successors for block in blocks),
+        "block_count": len(cfg.blocks),
+        "edge_count": sum(
+            len(block.successors)
+            for block in cfg.blocks
+        ),
+        "entry_block_count": sum(
+            not block.predecessors
+            for block in cfg.blocks
+        ),
+        "exit_block_count": sum(
+            not block.successors
+            for block in cfg.blocks
+        ),
         "conditional_branch_count": sum(
             bool(block.instructions)
             and block.instructions[-1].operation in {"IF_FALSE", "IF_TRUE"}
-            for block in blocks
+            for block in cfg.blocks
         ),
         "label_count": sum(
             instruction.operation == "LABEL"
-            for block in blocks
-            for instruction in block.instructions
+            for instruction in instructions
         ),
         "maximum_block_size": max(
-            (len(block.instructions) for block in blocks),
+            (len(block.instructions) for block in cfg.blocks),
             default=0,
         ),
     }
 
 
 def compare_optimized_instructions(original, optimized):
-    """
-    Compare original and optimized TAC as sequences (difflib), so an
-    instruction that only moved because earlier ones were removed is
-    not reported as changed.
-
-    Returns (transformations, changed_indices, statistics):
-
-      transformations   one entry per differing segment:
-                        {"kind": "changed" | "removed" | "added",
-                         "before": [...], "after": [...],
-                         "original_start": i, "optimized_start": j}
-      changed_indices   positions in the optimized TAC that replaced an
-                        original instruction one-for-one
-      statistics        instruction counts and reduction percentage
-    """
-    before_text = [str(instruction) for instruction in original]
-    after_text = [str(instruction) for instruction in optimized]
-
-    kinds = {"replace": "changed", "delete": "removed", "insert": "added"}
+    original_text = [str(instruction) for instruction in original]
+    optimized_text = [str(instruction) for instruction in optimized]
+    matcher = SequenceMatcher(
+        a=original_text,
+        b=optimized_text,
+        autojunk=False,
+    )
 
     transformations = []
     changed_indices = []
+    instructions_removed = 0
 
-    matcher = SequenceMatcher(a=before_text, b=after_text, autojunk=False)
-
-    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+    for tag, original_start, original_end, optimized_start, optimized_end in matcher.get_opcodes():
         if tag == "equal":
             continue
 
+        before = original_text[original_start:original_end]
+        after = optimized_text[optimized_start:optimized_end]
+
         transformations.append({
-            "kind": kinds[tag],
-            "before": before_text[i1:i2],
-            "after": after_text[j1:j2],
-            "original_start": i1,
-            "optimized_start": j1,
+            "kind": {
+                "replace": "changed",
+                "delete": "removed",
+                "insert": "added",
+            }[tag],
+            "before": before,
+            "after": after,
         })
 
-        # Only a same-length replacement maps instructions one-to-one
-        if tag == "replace" and (i2 - i1) == (j2 - j1):
-            changed_indices.extend(range(j1, j2))
+        if tag == "replace" and len(before) == len(after):
+            changed_indices.extend(
+                range(optimized_start, optimized_end)
+            )
 
-    original_count = len(before_text)
-    optimized_count = len(after_text)
-    removed = original_count - optimized_count
+        if tag in {"replace", "delete"}:
+            instructions_removed += max(0, len(before) - len(after))
 
-    return transformations, changed_indices, {
+    original_count = len(original_text)
+    optimized_count = len(optimized_text)
+    reduction_percentage = (
+        instructions_removed / original_count * 100
+        if original_count
+        else 0.0
+    )
+    statistics = {
         "original_instruction_count": original_count,
         "optimized_instruction_count": optimized_count,
-        "instructions_removed": removed,
+        "instructions_removed": instructions_removed,
         "transformation_count": len(transformations),
-        "optimization_percentage": (
-            round(removed / original_count * 100, 1)
-            if original_count
-            else 0.0
-        ),
+        "optimization_percentage": round(reduction_percentage, 1),
     }
+
+    return transformations, changed_indices, statistics

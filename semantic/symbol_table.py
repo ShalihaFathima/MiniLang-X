@@ -15,14 +15,8 @@ class SymbolTable:
     def __init__(self):
         self.scopes = [{}]
         self.scope_level = 0
-
-        # Every symbol ever declared, in declaration order. Scopes are
-        # discarded when they close, so this keeps nested-block symbols
-        # available for display after analysis.
-        self.symbols = []
-
-        # Number of scopes opened, including the global scope
         self.scope_count = 1
+        self.symbols = []
 
     def enter_scope(self):
         self.scopes.append({})
@@ -36,7 +30,14 @@ class SymbolTable:
         self.scopes.pop()
         self.scope_level -= 1
 
-    def declare(self, name, data_type, initialized=False, line=None, column=None):
+    def declare(
+        self,
+        name,
+        data_type,
+        initialized=False,
+        line=None,
+        column=None,
+    ):
         current_scope = self.scopes[-1]
 
         if name in current_scope:

@@ -3,90 +3,603 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MiniLang-X Compiler Visualizer</title>
-
-    <link
-        rel="stylesheet"
-        href="{{ url_for('static', filename='style.css') }}"
-    >
+    <title>MiniLang-X Compiler Pipeline Visualizer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
-
-<header class="header">
-    <h1>MiniLang-X</h1>
-    <p>Compiler Design Visualization</p>
-</header>
-
-<main class="container">
-
-    <section class="pipeline-section">
-        <h2>Compiler Pipeline</h2>
-
-        <div class="pipeline">
-
-            <div class="stage active" data-stage="source">Source</div>
-            <div class="arrow">→</div>
-
-            <div class="stage" data-stage="lexer">Lexer</div>
-            <div class="arrow">→</div>
-
-            <div class="stage" data-stage="parser">Parser</div>
-            <div class="arrow">→</div>
-
-            <div class="stage" data-stage="precedence">Precedence</div>
-            <div class="arrow">→</div>
-
-            <div class="stage" data-stage="ast">AST</div>
-            <div class="arrow">→</div>
-
-            <div class="stage" data-stage="semantic">Semantic</div>
-            <div class="arrow">→</div>
-
-            <div class="stage" data-stage="tac">TAC</div>
-            <div class="arrow">→</div>
-
-            <div class="stage" data-stage="cfg">CFG</div>
-            <div class="arrow">→</div>
-
-            <div class="stage" data-stage="optimizer">Optimizer</div>
-            <div class="arrow">→</div>
-
-            <div class="stage" data-stage="vm">VM</div>
-            <div class="arrow">→</div>
-
-            <div class="stage" data-stage="output">Output</div>
-
-        </div>
-    </section>
-
-    <section class="workspace">
-
-        <div class="panel">
-            <h2>MiniLang-X Source</h2>
-
-            <textarea id="source-code">int x = 10 + 20 * 3;
-
-print(x);</textarea>
-
-            <button id="compile-button">
-                Compile & Visualize
-            </button>
-        </div>
-
-        <div class="panel">
-            <h2>Visualization</h2>
-
-            <div id="visualization">
-                Select a compiler stage to visualize it.
+<div class="app-shell">
+    <!-- Compact Header -->
+    <header class="app-header">
+        <div class="header-brand">
+            <div class="brand-logo" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+                    <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+                    <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+                    <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+                    <path d="M10 6.5h4M10 17.5h4M6.5 10v4M17.5 10v4"></path>
+                </svg>
+            </div>
+            <div class="brand-text">
+                <h1 class="brand-title">MiniLang-X</h1>
+                <span class="brand-subtitle">Compiler Pipeline Visualizer</span>
             </div>
         </div>
 
-    </section>
+        <!-- Top-level Navigation Switcher: Compiler Pipeline vs Top-Down Lab vs Bottom-Up Lab -->
+        <nav class="header-nav-tabs" role="tablist" aria-label="Main Workspaces">
+            <button id="nav-pipeline-tab" class="workspace-tab active" type="button" role="tab" aria-selected="true">
+                <svg class="workspace-tab-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                <span>Compiler Pipeline</span>
+            </button>
+            <button id="nav-parser-lab-tab" class="workspace-tab" type="button" role="tab" aria-selected="false">
+                <svg class="workspace-tab-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                <span>Top-Down Lab</span>
+                <span class="workspace-pill-phase">Phase 2</span>
+            </button>
+            <button id="nav-bottom-up-tab" class="workspace-tab" type="button" role="tab" aria-selected="false">
+                <svg class="workspace-tab-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                    <path d="M7 8h10M7 12h10M7 16h10"></path>
+                </svg>
+                <span>Bottom-Up Lab</span>
+                <span class="workspace-pill-phase" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">Phase 3</span>
+            </button>
+        </nav>
 
-</main>
+        <div class="header-controls">
+            <div id="compiler-status" class="compiler-status" role="status">
+                <span class="status-dot" aria-hidden="true"></span> Ready
+            </div>
+            <div class="header-button-group">
+                <button id="compile-button" class="btn btn-primary" type="button" title="Compile Pipeline (Ctrl+Enter)">
+                    <span class="btn-icon" aria-hidden="true">▶</span>
+                    <span>Compile</span>
+                </button>
+                <button id="run-button" class="btn btn-secondary" type="button" title="Execute Target VM (F5)">
+                    <span class="btn-icon" aria-hidden="true">⚡</span>
+                    <span>Run</span>
+                </button>
+                <button id="reset-button" class="btn btn-secondary" type="button" title="Reset Visualizer (Esc)">
+                    <span class="btn-icon" aria-hidden="true">↺</span>
+                    <span>Reset</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Workspace 1: Compiler Pipeline -->
+    <div id="pipeline-workspace" class="workspace-content-pane active">
+        <!-- Prominent Horizontal Compilation Pipeline -->
+        <section class="pipeline-section" aria-label="Compiler Pipeline">
+            <div class="pipeline-header-bar">
+                <div class="pipeline-label-wrap">
+                    <span class="pipeline-track-title">Compilation Pipeline</span>
+                    <span class="pipeline-track-desc">12 Connected Compiler Phases & Transformations</span>
+                </div>
+                <div class="pipeline-groups-legend">
+                    <span class="group-tag front-tag">Front-End</span>
+                    <span class="group-arrow">→</span>
+                    <span class="group-tag middle-tag">Middle-End IR & Opt</span>
+                    <span class="group-arrow">→</span>
+                    <span class="group-tag back-tag">Back-End & VM</span>
+                </div>
+            </div>
+
+            <nav class="pipeline-track" aria-label="Compiler stages" role="tablist">
+                <!-- Stage 01: Source -->
+                <button class="stage active" type="button" data-stage="source" role="tab" aria-selected="true">
+                    <span class="stage-num">01</span>
+                    <span class="stage-text">Source</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+                <span class="stage-connector" aria-hidden="true"></span>
+
+                <!-- Stage 02: Lexer -->
+                <button class="stage" type="button" data-stage="lexer" role="tab" aria-selected="false">
+                    <span class="stage-num">02</span>
+                    <span class="stage-text">Lexer</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+                <span class="stage-connector" aria-hidden="true"></span>
+
+                <!-- Stage 03: Parser -->
+                <button class="stage" type="button" data-stage="parser" role="tab" aria-selected="false">
+                    <span class="stage-num">03</span>
+                    <span class="stage-text">Parser</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+                <span class="stage-connector" aria-hidden="true"></span>
+
+                <!-- Stage 04: Precedence -->
+                <button class="stage" type="button" data-stage="precedence" role="tab" aria-selected="false">
+                    <span class="stage-num">04</span>
+                    <span class="stage-text">Precedence</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+                <span class="stage-connector" aria-hidden="true"></span>
+
+                <!-- Stage 05: AST -->
+                <button class="stage" type="button" data-stage="ast" role="tab" aria-selected="false">
+                    <span class="stage-num">05</span>
+                    <span class="stage-text">AST</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+                <span class="stage-connector" aria-hidden="true"></span>
+
+                <!-- Stage 06: Semantic -->
+                <button class="stage" type="button" data-stage="semantic" role="tab" aria-selected="false">
+                    <span class="stage-num">06</span>
+                    <span class="stage-text">Semantic</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+                <span class="stage-connector connector-milestone" aria-hidden="true"></span>
+
+                <!-- Stage 07: TAC -->
+                <button class="stage" type="button" data-stage="tac" role="tab" aria-selected="false">
+                    <span class="stage-num">07</span>
+                    <span class="stage-text">TAC</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+                <span class="stage-connector" aria-hidden="true"></span>
+
+                <!-- Stage 08: CFG -->
+                <button class="stage" type="button" data-stage="cfg" role="tab" aria-selected="false">
+                    <span class="stage-num">08</span>
+                    <span class="stage-text">CFG</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+                <span class="stage-connector" aria-hidden="true"></span>
+
+                <!-- Stage 09: Optimizer -->
+                <button class="stage" type="button" data-stage="optimizer" role="tab" aria-selected="false">
+                    <span class="stage-num">09</span>
+                    <span class="stage-text">Optimizer</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+                <span class="stage-connector connector-milestone" aria-hidden="true"></span>
+
+                <!-- Stage 10: Backend -->
+                <button class="stage" type="button" data-stage="backend" role="tab" aria-selected="false">
+                    <span class="stage-num">10</span>
+                    <span class="stage-text">Backend</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+                <span class="stage-connector" aria-hidden="true"></span>
+
+                <!-- Stage 11: VM -->
+                <button class="stage" type="button" data-stage="vm" role="tab" aria-selected="false">
+                    <span class="stage-num">11</span>
+                    <span class="stage-text">VM</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+                <span class="stage-connector" aria-hidden="true"></span>
+
+                <!-- Stage 12: Output -->
+                <button class="stage" type="button" data-stage="output" role="tab" aria-selected="false">
+                    <span class="stage-num">12</span>
+                    <span class="stage-text">Output</span>
+                    <span class="stage-indicator" aria-hidden="true"></span>
+                </button>
+            </nav>
+        </section>
+
+        <!-- Main Workspace: Focused Source Input + Main Visualization Area -->
+        <main class="workspace-main">
+            <!-- Left Panel: Focused Source-Program Input Area -->
+            <section class="source-panel panel" aria-label="Source program input">
+                <div class="panel-header source-panel-header">
+                    <div class="panel-header-left">
+                        <span class="panel-section-tag">INPUT</span>
+                        <h2 class="panel-title">Source Program</h2>
+                    </div>
+                    <div class="source-format-pill">MiniLang-X</div>
+                </div>
+
+                <div class="editor-frame">
+                    <pre id="line-numbers" class="line-numbers" aria-hidden="true">1
+2
+3</pre>
+                    <textarea id="source-code" spellcheck="false" aria-label="MiniLang-X source code" autocapitalize="off" autocomplete="off">int x = 10 + 20 * 3;
+
+print(x);</textarea>
+                </div>
+
+                <div class="editor-action-bar">
+                    <button id="editor-compile-btn" class="btn btn-compile-lead" type="button">
+                        <span>Compile Source</span>
+                        <kbd>Ctrl+Enter</kbd>
+                    </button>
+                </div>
+
+                <div class="compiler-arch-card">
+                    <div class="arch-card-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <span>Pipeline Architecture</span>
+                    </div>
+                    <div class="arch-tier-list">
+                        <div class="arch-tier-item">
+                            <span class="tier-badge tier-front">Front-End</span>
+                            <span class="tier-desc">Scanning, grammar parsing, precedence, AST building, type & scope checking</span>
+                        </div>
+                        <div class="arch-tier-item">
+                            <span class="tier-badge tier-mid">Middle-End</span>
+                            <span class="tier-desc">Three-Address Code generation, basic block partitioning & CFG, peephole & constant optimization</span>
+                        </div>
+                        <div class="arch-tier-item">
+                            <span class="tier-badge tier-back">Back-End</span>
+                            <span class="tier-desc">Stack machine bytecode emission, virtual machine execution & trace capture</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Main Visualization Workspace -->
+            <section class="visualization-panel panel" aria-label="Compiler phase visualization">
+                <div class="panel-header visualization-panel-header">
+                    <div class="panel-header-left">
+                        <span id="active-stage-label" class="phase-badge">SOURCE</span>
+                        <h2 id="analysis-heading" class="panel-title">Source Program</h2>
+                    </div>
+                    <div id="phase-meta-desc" class="phase-meta-desc">
+                        Initial source program representation entering the compilation pipeline.
+                    </div>
+                </div>
+
+                <!-- Stage-specific content dynamically injected here -->
+                <div id="visualization" class="stage-content" role="region" tabindex="0" aria-label="Stage visualization content" aria-live="polite">
+                    Enter MiniLang-X code and compile to inspect the pipeline.
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Walkthrough Navigation Controller -->
+        <footer class="walkthrough-bar" aria-label="Pipeline navigation controls">
+            <div class="walkthrough-left">
+                <button id="previous-step-button" class="btn btn-secondary" type="button" title="Previous stage">
+                    ← Previous Stage
+                </button>
+                <div class="step-badge-wrap">
+                    <span id="step-indicator" class="step-indicator">Step 0 / 11</span>
+                </div>
+                <button id="next-step-button" class="btn btn-primary" type="button" title="Next Step (F10)" disabled>
+                    Next Step →
+                </button>
+            </div>
+
+            <div class="walkthrough-center">
+                <span class="hotkey-tip">Shortcuts: <kbd>Ctrl+Enter</kbd> Compile · <kbd>F5</kbd> Run · <kbd>F10</kbd> Step · <kbd>Esc</kbd> Reset</span>
+            </div>
+
+            <div class="walkthrough-right">
+                <button id="run-all-button" class="btn btn-outline" type="button" title="Run all pipeline stages sequentially">
+                    Run All Pipeline Stages
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Workspace 2: Dedicated Parser Lab (Phase 2: Top-Down Parsing) -->
+    <div id="parser-lab-workspace" class="workspace-content-pane" style="display: none;">
+        <!-- Phase 2 Informational Banner -->
+        <div class="parser-lab-banner">
+            <div class="banner-title-row">
+                <span class="banner-tag">PHASE 2: TOP-DOWN PARSING</span>
+                <h2 class="banner-title">LL(1) Predictive & Recursive Descent Parser Lab</h2>
+            </div>
+            <p class="banner-desc">
+                Interactive Top-Down Parsing Workbench. Compute FIRST &amp; FOLLOW sets, generate LL(1) parsing tables with conflict detection, execute predictive table-driven parsing with stack trace and parse trees, and evaluate recursive descent with left-recursion diagnostics.
+            </p>
+        </div>
+
+        <div class="parser-lab-grid">
+            <!-- Left Column: Grammar Editor & Configuration -->
+            <section class="parser-lab-input-panel panel" aria-label="Grammar Editor">
+                <div class="panel-header">
+                    <div class="panel-header-left">
+                        <span class="panel-section-tag">INPUT</span>
+                        <h2 class="panel-title">Grammar Specification</h2>
+                    </div>
+                    <div class="source-format-pill">CFG Notation</div>
+                </div>
+
+                <div class="grammar-toolbar">
+                    <div class="grammar-toolbar-row">
+                        <div class="toolbar-field">
+                            <label for="grammar-preset-select" class="field-label">Grammar Presets:</label>
+                            <select id="grammar-preset-select" class="form-select" aria-label="Select Grammar Preset">
+                                <option value="ll1_expr" selected>1. LL(1) Arithmetic (E -> T E', E' -> + T E' | ε, T -> id)</option>
+                                <option value="left_rec">2. Left-Recursive Arithmetic (E -> E + T | T, T -> id)</option>
+                                <option value="expr">3. Classic Expressions (E, T, F)</option>
+                                <option value="nullable">4. Nullable &amp; Epsilon Derivations</option>
+                                <option value="simple">5. Simple Statement Grammar</option>
+                                <option value="invalid">6. Invalid Grammar (Diagnostics Demo)</option>
+                                <option value="custom">Custom Grammar</option>
+                            </select>
+                        </div>
+
+                        <div class="toolbar-field">
+                            <label for="grammar-start-symbol" class="field-label">Start Symbol:</label>
+                            <input id="grammar-start-symbol" type="text" class="form-input" value="E" placeholder="Auto-detect (first LHS)" aria-label="Grammar Start Symbol">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grammar Editor Frame: Line Numbers + Textarea -->
+                <div class="editor-frame grammar-editor-frame">
+                    <pre id="grammar-line-numbers" class="line-numbers" aria-hidden="true">1
+2
+3</pre>
+                    <textarea id="grammar-editor" spellcheck="false" aria-label="Context-free grammar rules" autocapitalize="off" autocomplete="off">E -> T EPrime
+EPrime -> + T EPrime | ε
+T -> id</textarea>
+                </div>
+
+                <!-- Input Tokens & Parser Engine Controls -->
+                <div class="grammar-toolbar" style="border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle);">
+                    <div class="grammar-toolbar-row">
+                        <div class="toolbar-field">
+                            <label for="parser-input-string" class="field-label">Input Tokens / String:</label>
+                            <input id="parser-input-string" type="text" class="form-input" value="id + id" placeholder="e.g. id + id or compact id+id" aria-label="Input Tokens for Parsing">
+                        </div>
+
+                        <div class="toolbar-field">
+                            <label for="parser-engine-select" class="field-label">Top-Down Parsing Engine:</label>
+                            <select id="parser-engine-select" class="form-select" aria-label="Select Top-Down Parsing Engine">
+                                <option value="ll1" selected>LL(1) Table-Driven Predictive Parser</option>
+                                <option value="rd">Recursive Descent Parser (Backtracking &amp; Guard)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <span class="field-hint" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Separated by whitespace or compact terminals matching grammar tokens (e.g. <code>id + id</code>).</span>
+                </div>
+
+                <div class="editor-action-bar grammar-action-bar">
+                    <button id="btn-validate-grammar" class="btn btn-secondary" type="button" title="Validate grammar syntax and structure">
+                        <span>Validate</span>
+                    </button>
+                    <button id="btn-compute-first-follow" class="btn btn-secondary" type="button" title="Compute FIRST &amp; FOLLOW sets">
+                        <span class="btn-icon" aria-hidden="true">⚡</span>
+                        <span>FIRST / FOLLOW</span>
+                    </button>
+                    <button id="btn-generate-ll1-table" class="btn btn-secondary" type="button" title="Generate LL(1) predictive parsing table M[A, a]">
+                        <span>Generate Table</span>
+                    </button>
+                    <button id="btn-parse-input" class="btn btn-primary" type="button" title="Parse input tokens with selected parser engine">
+                        <span class="btn-icon" aria-hidden="true">▶</span>
+                        <span>Parse Input</span>
+                    </button>
+                </div>
+
+                <div class="compiler-arch-card">
+                    <div class="arch-card-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <span>Top-Down Parsing Principles</span>
+                    </div>
+                    <div class="arch-tier-list">
+                        <div class="arch-tier-item">
+                            <span class="tier-badge tier-front">LL(1) Parser</span>
+                            <span class="tier-desc">Table-driven predictive parser using 1 token of lookahead and an explicit symbol stack. Requires zero cell conflicts.</span>
+                        </div>
+                        <div class="arch-tier-item">
+                            <span class="tier-badge tier-mid">Recursive Descent</span>
+                            <span class="tier-desc">Top-down parser where each nonterminal corresponds to a procedure. Direct or indirect left recursion causes infinite loops.</span>
+                        </div>
+                        <div class="arch-tier-item">
+                            <span class="tier-badge tier-back">Lookahead</span>
+                            <span class="tier-desc">Predictive selection uses FIRST(α) and FOLLOW(A) for epsilon productions. End of input is marked by <code>$</code>.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Validation Diagnostics, Tables, Traces & Trees -->
+            <section class="parser-lab-output-panel panel" aria-label="Grammar Analysis Results">
+                <div class="panel-header">
+                    <div class="panel-header-left">
+                        <span class="phase-badge">ANALYSIS</span>
+                        <h2 class="panel-title" id="parser-lab-view-title">Top-Down Parsing</h2>
+                    </div>
+                    <div id="grammar-status-pill" class="compiler-status">
+                        <span class="status-dot" aria-hidden="true"></span>
+                        <span id="grammar-status-text">Ready</span>
+                    </div>
+                </div>
+
+                <!-- Segmented Tab Navigation for Parser Lab Views -->
+                <nav class="parser-lab-tab-nav" aria-label="Parser Lab Views">
+                    <button class="lab-tab-btn active" type="button" data-view="grammar" id="tab-btn-grammar">Grammar</button>
+                    <button class="lab-tab-btn" type="button" data-view="first-follow" id="tab-btn-first-follow">FIRST / FOLLOW</button>
+                    <button class="lab-tab-btn" type="button" data-view="ll1-table" id="tab-btn-ll1-table">LL(1) Table</button>
+                    <button class="lab-tab-btn" type="button" data-view="trace" id="tab-btn-trace">Parsing Trace</button>
+                    <button class="lab-tab-btn" type="button" data-view="parse-tree" id="tab-btn-parse-tree">Parse Tree</button>
+                    <button class="lab-tab-btn" type="button" data-view="recursive-descent" id="tab-btn-recursive-descent">Recursive Descent</button>
+                </nav>
+
+                <div id="parser-lab-content" class="stage-content">
+                    <div class="parser-lab-empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                        </svg>
+                        <h3>Ready for Grammar &amp; Top-Down Parsing Analysis</h3>
+                        <p>Configure grammar rules and input tokens on the left. Click <strong>Generate Table</strong> to compute the LL(1) predictive table, or <strong>Parse Input</strong> to trace top-down execution.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Workspace 3: Dedicated Bottom-Up Parser Lab (Phase 3: SLR(1), CLR(1), LALR(1)) -->
+    <div id="bottom-up-workspace" class="workspace-content-pane" style="display: none;">
+        <!-- Phase 3 Informational Banner -->
+        <div class="parser-lab-banner">
+            <div class="banner-title-row">
+                <span class="banner-tag" style="background: rgba(16, 185, 129, 0.12); color: #10b981; border-color: rgba(16, 185, 129, 0.3);">PHASE 3: BOTTOM-UP PARSING</span>
+                <h2 class="banner-title">SLR(1), CLR(1) &amp; LALR(1) Shift-Reduce Parsing Lab</h2>
+            </div>
+            <p class="banner-desc">
+                Interactive Bottom-Up LR Parsing Workbench. Construct LR(0) and LR(1) canonical item sets, explore state transition graphs, generate ACTION and GOTO tables with conflict detection, compare SLR(1) vs CLR(1) vs LALR(1) state merging, and execute stack-driven parsing traces with parse trees.
+            </p>
+        </div>
+
+        <div class="parser-lab-grid">
+            <!-- Left Column: Grammar Editor & Configuration -->
+            <section class="parser-lab-input-panel panel" aria-label="Bottom-Up Grammar Editor">
+                <div class="panel-header">
+                    <div class="panel-header-left">
+                        <span class="panel-section-tag" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">INPUT</span>
+                        <h2 class="panel-title">Grammar &amp; LR Engine</h2>
+                    </div>
+                    <div class="source-format-pill">LR CFG Notation</div>
+                </div>
+
+                <div class="grammar-toolbar">
+                    <div class="grammar-toolbar-row">
+                        <div class="toolbar-field">
+                            <label for="bu-grammar-preset-select" class="field-label">Grammar Presets:</label>
+                            <select id="bu-grammar-preset-select" class="form-select" aria-label="Select Bottom-Up Grammar Preset">
+                                <option value="bu_expr" selected>1. Left-Recursive Expression (E -> E+T | T, T -> T*F | F, F -> (E) | id)</option>
+                                <option value="bu_classic_lalr">2. Classic CLR(1) vs LALR(1) Grammar (S -> aAd | bAe | aBe | bBd)</option>
+                                <option value="bu_slr_conflict">3. SLR(1) Conflict Grammar (S -> L = R | R, L -> *R | id, R -> L)</option>
+                                <option value="bu_simple_epsilon">4. Epsilon Derivations (S -> a A b, A -> eps)</option>
+                                <option value="bu_custom">Custom Grammar</option>
+                            </select>
+                        </div>
+
+                        <div class="toolbar-field">
+                            <label for="bu-grammar-start-symbol" class="field-label">Start Symbol:</label>
+                            <input id="bu-grammar-start-symbol" type="text" class="form-input" value="E" placeholder="Auto-detect (first LHS)" aria-label="Grammar Start Symbol">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grammar Editor Frame: Line Numbers + Textarea -->
+                <div class="editor-frame grammar-editor-frame">
+                    <pre id="bu-grammar-line-numbers" class="line-numbers" aria-hidden="true">1
+2
+3</pre>
+                    <textarea id="bu-grammar-editor" spellcheck="false" aria-label="Bottom-Up Grammar rules" autocapitalize="off" autocomplete="off">E -> E + T | T
+T -> T * F | F
+F -> ( E ) | id</textarea>
+                </div>
+
+                <!-- Input Tokens & Bottom-Up Parser Engine Controls -->
+                <div class="grammar-toolbar" style="border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle);">
+                    <div class="grammar-toolbar-row">
+                        <div class="toolbar-field">
+                            <label for="bu-parser-input-string" class="field-label">Input Tokens / String:</label>
+                            <input id="bu-parser-input-string" type="text" class="form-input" value="id + id * id" placeholder="e.g. id + id * id or ( id + id ) * id" aria-label="Input Tokens for Bottom-Up Parsing">
+                        </div>
+
+                        <div class="toolbar-field">
+                            <label for="bu-parser-engine-select" class="field-label">Bottom-Up LR Engine:</label>
+                            <select id="bu-parser-engine-select" class="form-select" aria-label="Select Bottom-Up LR Engine">
+                                <option value="slr1" selected>SLR(1) Simple LR Parser</option>
+                                <option value="clr1">CLR(1) Canonical LR(1) Parser</option>
+                                <option value="lalr1">LALR(1) Look-Ahead LR(1) Parser</option>
+                            </select>
+                        </div>
+                    </div>
+                    <span class="field-hint" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Separated by whitespace or compact terminals matching grammar tokens (e.g. <code>id + id * id</code>).</span>
+                </div>
+
+                <div class="editor-action-bar grammar-action-bar">
+                    <button id="bu-btn-validate-grammar" class="btn btn-secondary" type="button" title="Validate grammar syntax and structure">
+                        <span>Validate</span>
+                    </button>
+                    <button id="bu-btn-generate-items" class="btn btn-secondary" type="button" title="Generate canonical LR item sets and state transition diagram">
+                        <span class="btn-icon" aria-hidden="true">⚙</span>
+                        <span>Item Sets</span>
+                    </button>
+                    <button id="bu-btn-generate-table" class="btn btn-secondary" type="button" title="Generate ACTION and GOTO tables with conflict detection">
+                        <span>Generate Table</span>
+                    </button>
+                    <button id="bu-btn-parse-input" class="btn btn-primary" type="button" title="Parse input tokens with selected bottom-up LR engine">
+                        <span class="btn-icon" aria-hidden="true">▶</span>
+                        <span>Parse Input</span>
+                    </button>
+                </div>
+
+                <div class="compiler-arch-card">
+                    <div class="arch-card-title">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <span>Bottom-Up LR Parsing Principles</span>
+                    </div>
+                    <div class="arch-tier-list">
+                        <div class="arch-tier-item">
+                            <span class="tier-badge" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">SLR(1)</span>
+                            <span class="tier-desc">Constructs LR(0) items. Uses FOLLOW(A) sets for reduce actions. Simple but susceptible to false shift/reduce conflicts.</span>
+                        </div>
+                        <div class="arch-tier-item">
+                            <span class="tier-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">CLR(1)</span>
+                            <span class="tier-desc">Canonical LR(1) items carry specific lookahead tokens [A -> α • β, a]. Conflict-free for all LR(1) grammars, but has more states.</span>
+                        </div>
+                        <div class="arch-tier-item">
+                            <span class="tier-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">LALR(1)</span>
+                            <span class="tier-desc">Merges CLR(1) states sharing identical LR(0) cores, combining their lookaheads. Same state count as SLR(1); may introduce reduce/reduce conflicts.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Diagnostics, Items, Diagram, Tables, Traces & Trees -->
+            <section class="parser-lab-output-panel panel" aria-label="Bottom-Up Analysis Results">
+                <div class="panel-header">
+                    <div class="panel-header-left">
+                        <span class="phase-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">BOTTOM-UP</span>
+                        <h2 class="panel-title" id="bu-view-title">Bottom-Up LR Parsing</h2>
+                    </div>
+                    <div id="bu-status-pill" class="compiler-status">
+                        <span class="status-dot" aria-hidden="true"></span>
+                        <span id="bu-status-text">Ready</span>
+                    </div>
+                </div>
+
+                <!-- Segmented Tab Navigation for Bottom-Up Views -->
+                <nav class="parser-lab-tab-nav" aria-label="Bottom-Up Parser Lab Views">
+                    <button class="lab-tab-btn active" type="button" data-bu-view="grammar" id="bu-tab-grammar">Grammar</button>
+                    <button class="lab-tab-btn" type="button" data-bu-view="items" id="bu-tab-items">Item Sets</button>
+                    <button class="lab-tab-btn" type="button" data-bu-view="graph" id="bu-tab-graph">Transition Diagram</button>
+                    <button class="lab-tab-btn" type="button" data-bu-view="action-table" id="bu-tab-action">ACTION Table</button>
+                    <button class="lab-tab-btn" type="button" data-bu-view="goto-table" id="bu-tab-goto">GOTO Table</button>
+                    <button class="lab-tab-btn" type="button" data-bu-view="conflicts" id="bu-tab-conflicts">Conflicts</button>
+                    <button class="lab-tab-btn" type="button" data-bu-view="trace" id="bu-tab-trace">Parsing Trace</button>
+                    <button class="lab-tab-btn" type="button" data-bu-view="tree" id="bu-tab-tree">Parse Tree</button>
+                    <button class="lab-tab-btn" type="button" data-bu-view="merged" id="bu-tab-merged" style="display: none;">LALR Merged States</button>
+                </nav>
+
+                <div id="bu-content" class="stage-content">
+                    <div class="parser-lab-empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                            <path d="M7 8h10M7 12h10M7 16h10"></path>
+                        </svg>
+                        <h3>Ready for Bottom-Up Parsing Analysis</h3>
+                        <p>Configure grammar rules and input tokens on the left. Click <strong>Generate Item Sets</strong> to view canonical states &amp; transitions, <strong>Generate Table</strong> to view ACTION/GOTO tables, or <strong>Parse Input</strong> to trace shift-reduce execution.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
 
 <script src="{{ url_for('static', filename='script.js') }}"></script>
-
+<script src="{{ url_for('static', filename='parser_lab.js') }}"></script>
 </body>
 </html>

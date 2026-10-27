@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniLang-X Compiler Visualizer</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+</head>
+
+<body>
+
+<header class="header">
+    <h1>MiniLang-X</h1>
+    <p>Compiler Design Visualization</p>
+</header>
+
+<main class="container">
+
+    <section class="pipeline-section">
+        <h2>Compiler Pipeline</h2>
+
+        <div class="pipeline">
+
+            <div class="stage active">Source</div>
+            <div class="arrow">→</div>
+
+            <div class="stage">Lexer</div>
+            <div class="arrow">→</div>
+
+            <div class="stage">Parser</div>
+            <div class="arrow">→</div>
+
+            <div class="stage">Precedence</div>
+            <div class="arrow">→</div>
+
+            <div class="stage">AST</div>
+            <div class="arrow">→</div>
+
+            <div class="stage">Semantic</div>
+            <div class="arrow">→</div>
+
+            <div class="stage">TAC</div>
+            <div class="arrow">→</div>
+
+            <div class="stage">CFG</div>
+            <div class="arrow">→</div>
+
+            <div class="stage">Optimizer</div>
+            <div class="arrow">→</div>
+
+            <div class="stage">VM</div>
+            <div class="arrow">→</div>
+
+            <div class="stage">Output</div>
+
+        </div>
+    </section>
+
+    <section class="workspace">
+
+        <div class="panel">
+            <h2>MiniLang-X Source</h2>
+
+            <textarea id="source-code">int x = 10 + 20 * 3;
+
+print(x);</textarea>
+
+            <button id="compile-button">
+                Compile & Visualize
+            </button>
+        </div>
+
+        <div class="panel">
+            <h2>Visualization</h2>
+
+            <div id="visualization">
+                Select a compiler stage to visualize it.
+            </div>
+        </div>
+
+    </section>
+
+</main>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>

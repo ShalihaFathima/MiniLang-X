@@ -1,42 +1,23 @@
-from errors import format_error, source_context
 from lexer.token import Token, TokenType
 
 
 class LexicalError(SyntaxError):
-    """
-    An invalid character or malformed token, reported with its
-    location, e.g.
-
-        Lexical Error
-        Line: 2
-        Column: 3
-        Unexpected character: @
-        '@' is not part of the MiniLang-X language.
-    """
-
-    def __init__(self, message, line, column, explanation=None, source=None):
-        self.message = message
+    def __init__(self, line, column, error_type, problematic, explanation):
         self.line = line
         self.column = column
-        self.source_context = source_context(source, line, column)
-
-        details = [message]
-
-        if explanation:
-            details.append(explanation)
-
-        super().__init__(
-            format_error(
-                "Lexical Error",
-                line,
-                column,
-                details,
-                self.source_context,
-            )
-        )
+        self.error_type = error_type
+        self.problematic = problematic
+        self.explanation = explanation
+        super().__init__(str(self))
 
     def __str__(self):
-        return self.args[0]
+        return (
+            f"Lexical Error\n"
+            f"Line: {self.line}\n"
+            f"Column: {self.column}\n"
+            f"{self.error_type}: {self.problematic}\n"
+            f"Explanation: {self.explanation}"
+        )
 
 
 class Lexer:
@@ -75,8 +56,6 @@ class Lexer:
         self.line = 1
         self.column = 1
         self.tokens = []
-
-        # Comments are skipped, but counted for the dashboard statistics
         self.comment_count = 0
 
     def current_char(self):
@@ -127,11 +106,10 @@ class Lexer:
                 return
 
     def skip_comment(self):
-        self.comment_count += 1
-
         # Current position is at the first '/'
         self.advance()
         self.advance()
+        self.comment_count += 1
 
         while self.current_char() is not None:
             if self.current_char() == "\n":
@@ -223,19 +201,22 @@ class Lexer:
                 return
 
             if char == "\n":
-                self.unterminated_string(start_line, start_column)
+                raise LexicalError(
+                    start_line,
+                    start_column,
+                    "Unterminated string",
+                    '"',
+                    "String literals cannot continue onto another line.",
+                )
 
             value += self.advance()
 
-        self.unterminated_string(start_line, start_column)
-
-    def unterminated_string(self, line, column):
         raise LexicalError(
+            start_line,
+            start_column,
             "Unterminated string",
-            line,
-            column,
-            "A string must end with '\"' on the same line.",
-            self.source,
+            '"',
+            "String literal is missing its closing double quote.",
         )
 
     def tokenize(self):
@@ -332,11 +313,11 @@ class Lexer:
 
             # Unknown character
             raise LexicalError(
-                f"Unexpected character: {char}",
                 start_line,
                 start_column,
-                f"'{char}' is not part of the MiniLang-X language.",
-                self.source,
+                "Unexpected character",
+                char,
+                f"Character {char!r} is not part of the MiniLang-X language.",
             )
 
         self.tokens.append(

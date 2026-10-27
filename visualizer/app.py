@@ -7,9 +7,11 @@ from visualizer.compiler_bridge import (
     tac_source,
 )
 from parser.parser import ParserSyntaxError
+from parser_lab.routes import parser_lab_bp
 
 
 app = Flask(__name__)
+app.register_blueprint(parser_lab_bp)
 
 
 @app.route("/")

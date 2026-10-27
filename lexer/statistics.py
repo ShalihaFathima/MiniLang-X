@@ -12,7 +12,6 @@ KEYWORD_TYPES = {
     TokenType.PRINT,
 }
 
-# true and false are boolean literals
 LITERAL_TYPES = {
     TokenType.INTEGER,
     TokenType.FLOAT_LITERAL,
@@ -46,22 +45,32 @@ SEPARATOR_TYPES = {
 
 
 def calculate_token_statistics(tokens, comment_count=0):
-    """
-    Count the tokens produced by the lexer by category. The EOF token
-    is not counted. Comments produce no tokens, so their count comes
-    from the lexer (Lexer.comment_count).
-    """
-    tokens = [token for token in tokens if token.type != TokenType.EOF]
-
-    def count(types):
-        return sum(token.type in types for token in tokens)
+    source_tokens = [
+        token for token in tokens
+        if token.type != TokenType.EOF
+    ]
 
     return {
-        "total_tokens": len(tokens),
-        "identifiers": count({TokenType.IDENTIFIER}),
-        "keywords": count(KEYWORD_TYPES),
-        "literals": count(LITERAL_TYPES),
-        "operators": count(OPERATOR_TYPES),
-        "separators": count(SEPARATOR_TYPES),
+        "total_tokens": len(source_tokens),
+        "identifiers": sum(
+            token.type == TokenType.IDENTIFIER
+            for token in source_tokens
+        ),
+        "keywords": sum(
+            token.type in KEYWORD_TYPES
+            for token in source_tokens
+        ),
+        "literals": sum(
+            token.type in LITERAL_TYPES
+            for token in source_tokens
+        ),
+        "operators": sum(
+            token.type in OPERATOR_TYPES
+            for token in source_tokens
+        ),
+        "separators": sum(
+            token.type in SEPARATOR_TYPES
+            for token in source_tokens
+        ),
         "comments": comment_count,
     }

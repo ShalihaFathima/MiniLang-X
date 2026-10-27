@@ -45,6 +45,8 @@ class SemanticTests(unittest.TestCase):
 
     def test_existing_type_compatibility_is_preserved(self):
         self.assertTrue(semantic_source("float x = 1;")["valid"])
+        self.assertTrue(semantic_source("int x = 1; bool ok = (x == 1.0);")["valid"])
+        self.assertTrue(semantic_source("bool ok = (1 < 2.0);")["valid"])
 
         result = semantic_source('int x = "text";')
         self.assertFalse(result["valid"])
